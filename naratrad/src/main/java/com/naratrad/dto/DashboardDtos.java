@@ -6,6 +6,7 @@ import java.util.List;
 public class DashboardDtos {
 
     public record DashboardItem(
+            long portfolioId,
             String symbol,
             BigDecimal price,
             BigDecimal changePercent,

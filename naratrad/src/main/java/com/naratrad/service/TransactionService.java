@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
+
 
 @Service
 public class TransactionService {
@@ -13,7 +15,7 @@ public class TransactionService {
         return new TransactionResponse(
                 1L, req.portfolioId(), req.symbol(), "BUY",
                 req.quantity(), req.price(), null,
-                req.ts() != null ? req.ts() : OffsetDateTime.now()
+                req.ts() != null ? req.ts() : LocalDateTime.now()
         );
     }
     public TransactionResponse sell(BuySellRequest req) {
@@ -21,7 +23,7 @@ public class TransactionService {
         return new TransactionResponse(
                 2L, req.portfolioId(), req.symbol(), "SELL",
                 req.quantity(), req.price(), realized,
-                req.ts() != null ? req.ts() : OffsetDateTime.now()
+                req.ts() != null ? req.ts() : LocalDateTime.now()
         );
     }
 }

@@ -17,7 +17,10 @@ public class DashboardController {
 
     // response: portfolioValue + items [symbol, price, changePercent, quantity]
     @GetMapping("/dashboard")
-    public DashboardResponse dashboard(@RequestParam(name = "portfolioId", required = false) Long portfolioId) {
+    public DashboardResponse dashboard(
+            @RequestParam Long portfolioId
+    ) {
         return service.buildDashboard(portfolioId);
     }
+
 }
