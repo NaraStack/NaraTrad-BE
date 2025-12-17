@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Database files that are system/local specific
+naratrad/data/*.mv.db
+
+# IDE files (e.g., IntelliJ, VS Code)
+.idea/
