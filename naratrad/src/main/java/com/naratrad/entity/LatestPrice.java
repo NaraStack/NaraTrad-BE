@@ -7,10 +7,10 @@ import java.time.OffsetDateTime;
 
 @Entity
 @Table(
-    name = "latest_price",
-    indexes = {
-        @Index(name = "idx_latest_symbol", columnList = "symbol", unique = true)
-    }
+        name = "latest_price",
+        indexes = {
+                @Index(name = "idx_latest_symbol", columnList = "symbol", unique = true)
+        }
 )
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class LatestPrice {
