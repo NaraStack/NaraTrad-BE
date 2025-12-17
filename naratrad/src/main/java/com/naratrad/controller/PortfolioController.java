@@ -1,44 +1,47 @@
 package com.naratrad.controller;
 
+import com.naratrad.dto.PortfolioResponseDTO;
+import com.naratrad.dto.PortfolioSummaryDTO;
 import com.naratrad.entity.Portfolio;
-import com.naratrad.repository.PortfolioRepository;
-import jakarta.validation.Valid;
-import org.springframework.http.ResponseEntity;
+import com.naratrad.service.PortfolioService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.URI;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/portfolios")
+@RequestMapping("/api/portfolio")
+@Tag(name = "Portfolio Management", description = "CRUD untuk dashboard NaraTrad")
+@CrossOrigin(origins = "*") // Penting agar bisa diakses oleh Angular nanti
 public class PortfolioController {
 
-    private final PortfolioRepository repo;
+    @Autowired
+    private PortfolioService service;
 
-    public PortfolioController(PortfolioRepository repo) {
-        this.repo = repo;
+    @GetMapping
+    @Operation(summary = "Mendapatkan semua stok beserta harga real-time")
+    public List<PortfolioResponseDTO> getAll() {
+        return service.getFullPortfolio();
     }
 
     @PostMapping
-    public ResponseEntity<Portfolio> create(@Valid @RequestBody Portfolio body) {
-        var saved = repo.save(body);
-        return ResponseEntity.created(URI.create("/api/v1/portfolios/" + saved.getId())).body(saved);
-    }
-
-    @GetMapping
-    public List<Portfolio> list() {
-        return repo.findAll();
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<Portfolio> get(@PathVariable Long id) {
-        return repo.findById(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    @Operation(summary = "Menambah stok baru atau update jumlah")
+    public Portfolio addStock(@RequestBody Portfolio stock) {
+        return service.addOrUpdateStock(stock);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        if (!repo.existsById(id)) return ResponseEntity.notFound().build();
-        repo.deleteById(id);
-        return ResponseEntity.noContent().build();
+    @Operation(summary = "Menghapus stok berdasarkan ID")
+    public String deleteStock(@PathVariable Long id) {
+        service.deleteStock(id);
+        return "Stock deleted successfully";
+    }
+
+    @GetMapping("/summary")
+    @Operation(summary = "Mendapatkan ringkasan total nilai seluruh portofolio")
+    public PortfolioSummaryDTO getSummary() {
+        return service.getSummary();
     }
 }
