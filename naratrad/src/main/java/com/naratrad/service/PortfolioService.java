@@ -1,5 +1,6 @@
 package com.naratrad.service;
 
+import com.naratrad.dto.DashboardDTO;
 import com.naratrad.dto.PortfolioResponseDTO;
 import com.naratrad.dto.PortfolioSummaryDTO;
 import com.naratrad.entity.Portfolio;
@@ -117,5 +118,23 @@ public class PortfolioService {
         summary.setTotalStocksOwned(allDetails.size());
 
         return summary;
+    }
+
+    public DashboardDTO getDashboardData() {
+        // 1. Ambil list detail (yang sudah ada harga Finnhub-nya)
+        List<PortfolioResponseDTO> allDetails = getFullPortfolio();
+
+        // 2. Hitung total nilai
+        Double totalValue = allDetails.stream()
+                .mapToDouble(PortfolioResponseDTO::getTotalValue)
+                .sum();
+
+        // 3. Masukkan semua ke dalam DashboardDTO
+        DashboardDTO dashboard = new DashboardDTO();
+        dashboard.setTotalPortfolioValue(totalValue);
+        dashboard.setTotalStocksOwned(allDetails.size());
+        dashboard.setStockList(allDetails);
+
+        return dashboard;
     }
 }

@@ -1,5 +1,6 @@
 package com.naratrad.controller;
 
+import com.naratrad.dto.DashboardDTO;
 import com.naratrad.dto.PortfolioResponseDTO;
 import com.naratrad.dto.PortfolioSummaryDTO;
 import com.naratrad.entity.Portfolio;
@@ -43,5 +44,11 @@ public class PortfolioController {
     @Operation(summary = "Mendapatkan ringkasan total nilai seluruh portofolio")
     public PortfolioSummaryDTO getSummary() {
         return service.getSummary();
+    }
+
+    @GetMapping("/dashboard")
+    @Operation(summary = "Mendapatkan data lengkap dashboard (Summary + Stock List)")
+    public DashboardDTO getDashboard() {
+        return service.getDashboardData();
     }
 }
