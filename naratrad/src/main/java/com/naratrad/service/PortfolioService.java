@@ -30,15 +30,16 @@ public class PortfolioService {
     private final String FINNHUB_URL = "https://finnhub.io/api/v1/quote?symbol=%s&token=%s";
 
     /**
-     * READ: Mengambil data dari database dan menggabungkannya dengan harga real-time.
-     * Menggunakan try-catch agar jika satu API call gagal, aplikasi tidak Error 500.
+     * READ: Mengambil semua data stok dari DB dan menggabungkannya dengan harga real-time
      */
     public List<PortfolioResponseDTO> getFullPortfolio() {
         List<Portfolio> myStocks = repository.findAll();
-
         return myStocks.stream().map(this::convertToDto).collect(Collectors.toList());
     }
 
+    /**
+     * Logika utama untuk mapping Entity ke DTO dan integrasi API Finnhub
+     */
     private PortfolioResponseDTO convertToDto(Portfolio stock) {
         PortfolioResponseDTO dto = new PortfolioResponseDTO();
         dto.setId(stock.getId());
@@ -47,22 +48,26 @@ public class PortfolioService {
 
         try {
             String url = String.format(FINNHUB_URL, stock.getSymbol(), apiKey);
-            // Mengambil response sebagai Map raw
             Map<String, Object> response = restTemplate.getForObject(url, Map.class);
 
             if (response != null && response.get("c") != null) {
-                // Menggunakan Number untuk menangani konversi Integer/Double secara aman
+                // Mengambil data harga saat ini dan perubahan persen
                 double currentPrice = ((Number) response.get("c")).doubleValue();
                 double percentChange = ((Number) response.get("dp")).doubleValue();
 
+                // Historical Performance: Harga penutupan kemarin (pc) & selisih harga (d)
+                double prevClose = ((Number) response.get("pc")).doubleValue();
+                double diff = ((Number) response.get("d")).doubleValue();
+
                 dto.setPrice(currentPrice);
                 dto.setChange(percentChange);
+                dto.setPreviousClose(prevClose);
+                dto.setPriceChange(diff);
                 dto.setTotalValue(currentPrice * stock.getQuantity());
             } else {
                 setEmptyPriceData(dto);
             }
         } catch (Exception e) {
-            // Log error di console agar bisa didebug tanpa menghentikan aplikasi
             System.err.println("Gagal fetch Finnhub untuk " + stock.getSymbol() + ": " + e.getMessage());
             setEmptyPriceData(dto);
         }
@@ -72,15 +77,15 @@ public class PortfolioService {
     private void setEmptyPriceData(PortfolioResponseDTO dto) {
         dto.setPrice(0.0);
         dto.setChange(0.0);
+        dto.setPreviousClose(0.0);
+        dto.setPriceChange(0.0);
         dto.setTotalValue(0.0);
     }
 
     /**
-     * CREATE / UPDATE: Menambah stok baru.
-     * Jika simbol sudah ada, jumlah (quantity) akan ditambahkan ke data lama.
+     * CREATE / UPDATE: Menambah stok. Simbol dipaksa Uppercase.
      */
     public Portfolio addOrUpdateStock(Portfolio stock) {
-        // Memastikan simbol selalu Uppercase untuk konsistensi di DB dan API
         String symbol = stock.getSymbol().toUpperCase();
         Optional<Portfolio> existingStock = repository.findBySymbol(symbol);
 
@@ -95,7 +100,7 @@ public class PortfolioService {
     }
 
     /**
-     * DELETE: Menghapus data stok berdasarkan ID primary key.
+     * DELETE: Menghapus data berdasarkan ID
      */
     public void deleteStock(Long id) {
         if (repository.existsById(id)) {
@@ -103,16 +108,16 @@ public class PortfolioService {
         }
     }
 
+    /**
+     * Mendapatkan Ringkasan Portofolio saja
+     */
     public PortfolioSummaryDTO getSummary() {
-        // 1. Ambil semua data detail (yang sudah ada harganya dari Finnhub)
         List<PortfolioResponseDTO> allDetails = getFullPortfolio();
 
-        // 2. Hitung total nilai seluruh portofolio
         Double totalValue = allDetails.stream()
                 .mapToDouble(PortfolioResponseDTO::getTotalValue)
                 .sum();
 
-        // 3. Masukkan ke dalam DTO Summary
         PortfolioSummaryDTO summary = new PortfolioSummaryDTO();
         summary.setTotalPortfolioValue(totalValue);
         summary.setTotalStocksOwned(allDetails.size());
@@ -120,16 +125,16 @@ public class PortfolioService {
         return summary;
     }
 
+    /**
+     * Mendapatkan Paket Lengkap untuk Dashboard (Summary + List Stok)
+     */
     public DashboardDTO getDashboardData() {
-        // 1. Ambil list detail (yang sudah ada harga Finnhub-nya)
         List<PortfolioResponseDTO> allDetails = getFullPortfolio();
 
-        // 2. Hitung total nilai
         Double totalValue = allDetails.stream()
                 .mapToDouble(PortfolioResponseDTO::getTotalValue)
                 .sum();
 
-        // 3. Masukkan semua ke dalam DashboardDTO
         DashboardDTO dashboard = new DashboardDTO();
         dashboard.setTotalPortfolioValue(totalValue);
         dashboard.setTotalStocksOwned(allDetails.size());

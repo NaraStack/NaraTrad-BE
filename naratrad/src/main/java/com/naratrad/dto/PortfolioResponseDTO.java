@@ -12,5 +12,9 @@ public class PortfolioResponseDTO {
     private Double price;       // Current price (c)
     private Double change;      // Percent change (dp)
     private Double totalValue;  // quantity * price
+
+    // Field Baru
+    private Double previousClose; // Harga penutupan kemarin (pc)
+    private Double priceChange;   // Selisih harga dalam USD (d)
 }
 
