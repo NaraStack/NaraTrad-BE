@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/portfolio")
@@ -50,5 +51,12 @@ public class PortfolioController {
     @Operation(summary = "Mendapatkan data lengkap dashboard (Summary + Stock List)")
     public DashboardDTO getDashboard() {
         return service.getDashboardData();
+    }
+
+    @GetMapping("/search")
+    @Operation(summary = "Mencari Symbol auto lewat dropdown saat add stock")
+    public List<Map<String, String>> search(@RequestParam String query) {
+        if (query.length() < 1) return List.of();
+        return service.searchSymbols(query);
     }
 }

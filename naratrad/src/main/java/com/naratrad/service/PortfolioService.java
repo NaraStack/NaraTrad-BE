@@ -142,4 +142,68 @@ public class PortfolioService {
 
         return dashboard;
     }
+
+    public List<Map<String, String>> searchSymbols(String query) {
+        // 1. Hardcode 50 data simbol populer
+        List<Map<String, String>> mockSymbols = List.of(
+                Map.of("symbol", "AAPL", "name", "Apple Inc."),
+                Map.of("symbol", "MSFT", "name", "Microsoft Corp."),
+                Map.of("symbol", "GOOGL", "name", "Alphabet Inc."),
+                Map.of("symbol", "AMZN", "name", "Amazon.com Inc."),
+                Map.of("symbol", "TSLA", "name", "Tesla Inc."),
+                Map.of("symbol", "META", "name", "Meta Platforms Inc."),
+                Map.of("symbol", "NVDA", "name", "NVIDIA Corp."),
+                Map.of("symbol", "NFLX", "name", "Netflix Inc."),
+                Map.of("symbol", "PYPL", "name", "PayPal Holdings"),
+                Map.of("symbol", "ADBE", "name", "Adobe Inc."),
+                Map.of("symbol", "DIS", "name", "Walt Disney Co."),
+                Map.of("symbol", "NKE", "name", "Nike Inc."),
+                Map.of("symbol", "SBUX", "name", "Starbucks Corp."),
+                Map.of("symbol", "TSM", "name", "Taiwan Semiconductor"),
+                Map.of("symbol", "BABA", "name", "Alibaba Group"),
+                Map.of("symbol", "V", "name", "Visa Inc."),
+                Map.of("symbol", "MA", "name", "Mastercard Inc."),
+                Map.of("symbol", "JPM", "name", "JPMorgan Chase"),
+                Map.of("symbol", "BAC", "name", "Bank of America"),
+                Map.of("symbol", "WMT", "name", "Walmart Inc."),
+                Map.of("symbol", "KO", "name", "Coca-Cola Co."),
+                Map.of("symbol", "PEP", "name", "PepsiCo Inc."),
+                Map.of("symbol", "COST", "name", "Costco Wholesale"),
+                Map.of("symbol", "AMD", "name", "Advanced Micro Devices"),
+                Map.of("symbol", "INTC", "name", "Intel Corp."),
+                Map.of("symbol", "ORCL", "name", "Oracle Corp."),
+                Map.of("symbol", "CRM", "name", "Salesforce Inc."),
+                Map.of("symbol", "CSCO", "name", "Cisco Systems"),
+                Map.of("symbol", "TMUS", "name", "T-Mobile US"),
+                Map.of("symbol", "VZ", "name", "Verizon Communications"),
+                Map.of("symbol", "T", "name", "AT&T Inc."),
+                Map.of("symbol", "IBM", "name", "IBM Corp."),
+                Map.of("symbol", "GE", "name", "General Electric"),
+                Map.of("symbol", "F", "name", "Ford Motor Co."),
+                Map.of("symbol", "GM", "name", "General Motors"),
+                Map.of("symbol", "UBER", "name", "Uber Technologies"),
+                Map.of("symbol", "ABNB", "name", "Airbnb Inc."),
+                Map.of("symbol", "SPOT", "name", "Spotify Technology"),
+                Map.of("symbol", "SQ", "name", "Block Inc."),
+                Map.of("symbol", "SHOP", "name", "Shopify Inc."),
+                Map.of("symbol", "ZM", "name", "Zoom Video"),
+                Map.of("symbol", "PLTR", "name", "Palantir Technologies"),
+                Map.of("symbol", "RIVN", "name", "Rivian Automotive"),
+                Map.of("symbol", "LCID", "name", "Lucid Group"),
+                Map.of("symbol", "PFE", "name", "Pfizer Inc."),
+                Map.of("symbol", "MRNA", "name", "Moderna Inc."),
+                Map.of("symbol", "JNJ", "name", "Johnson & Johnson"),
+                Map.of("symbol", "XOM", "name", "Exxon Mobil"),
+                Map.of("symbol", "CVX", "name", "Chevron Corp."),
+                Map.of("symbol", "TM", "name", "Toyota Motor")
+        );
+
+        // 2. Filter berdasarkan input user
+        String upperQuery = query.toUpperCase();
+        return mockSymbols.stream()
+                .filter(s -> s.get("symbol").contains(upperQuery) ||
+                        s.get("name").toUpperCase().contains(upperQuery))
+                .limit(10) // Tetap batasi 10 hasil agar rapi di UI
+                .collect(Collectors.toList());
+    }
 }
