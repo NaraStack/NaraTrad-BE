@@ -59,4 +59,20 @@ public class PortfolioController {
         if (query.length() < 1) return List.of();
         return service.searchSymbols(query);
     }
+
+    // 1. Endpoint untuk mendapatkan harga saja
+    @GetMapping("/price/{symbol}")
+    @Operation(summary = "Mendapatkan harga real-time satu simbol saja")
+    public Double getStockPrice(@PathVariable String symbol) {
+        return service.getLivePrice(symbol);
+    }
+
+    // 2. Endpoint untuk kalkulasi (biasanya dipakai di form 'Add Stock' buat simulasi)
+    @GetMapping("/calculate")
+    @Operation(summary = "Menghitung total nilai (Price x Quantity) secara real-time")
+    public Map<String, Object> getCalculation(
+            @RequestParam String symbol,
+            @RequestParam Integer quantity) {
+        return service.calculateTotalValue(symbol, quantity);
+    }
 }
