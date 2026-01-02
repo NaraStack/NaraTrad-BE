@@ -37,3 +37,9 @@ naratrad/data/*.mv.db
 
 # IDE files (e.g., IntelliJ, VS Code)
 .idea/
+
+# Environment variables (credentials)
+.env
+.env.local
+.env.production
+*.env
