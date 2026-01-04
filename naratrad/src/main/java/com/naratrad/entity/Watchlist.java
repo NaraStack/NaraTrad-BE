@@ -2,28 +2,21 @@ package com.naratrad.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "portfolios")
+@Table(name = "watchlists")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class Portfolio {
+public class Watchlist {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
-    private User user; // Menghubungkan ke tabel User
+    private User user;
 
     @Column(nullable = false)
     private String symbol;
 
-    @Column(nullable = false)
-    private Integer quantity;
-
-    @Column(nullable = false)
-    private Double purchasePrice;
-
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private Double targetPrice;
 }
