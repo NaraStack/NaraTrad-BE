@@ -206,4 +206,32 @@ public class PortfolioService {
                 .limit(10) // Tetap batasi 10 hasil agar rapi di UI
                 .collect(Collectors.toList());
     }
+
+    // Method untuk ambil harga satuan saja
+    public Double getLivePrice(String symbol) {
+        try {
+            String url = String.format(FINNHUB_URL, symbol.toUpperCase(), apiKey);
+            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
+
+            if (response != null && response.get("c") != null) {
+                return ((Number) response.get("c")).doubleValue();
+            }
+        } catch (Exception e) {
+            System.err.println("Error fetching price: " + e.getMessage());
+        }
+        return 0.0;
+    }
+
+    // Method untuk hitung total value (Live Calculation)
+    public Map<String, Object> calculateTotalValue(String symbol, Integer quantity) {
+        Double price = getLivePrice(symbol);
+        Double totalValue = price * quantity;
+
+        return Map.of(
+                "symbol", symbol.toUpperCase(),
+                "quantity", quantity,
+                "currentPrice", price,
+                "totalValue", totalValue
+        );
+    }
 }
