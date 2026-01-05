@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class RegisterRequest {
+public class CreateAdminRequest {
 
     @NotBlank(message = "Email tidak boleh kosong")
     @Email(message = "Format email tidak valid")
@@ -25,4 +25,7 @@ public class RegisterRequest {
     @NotBlank(message = "Nama lengkap tidak boleh kosong")
     @Size(min = 3, message = "Nama lengkap minimal 3 karakter")
     private String fullName;
+
+    @NotBlank(message = "Secret key tidak boleh kosong")
+    private String secretKey;
 }
