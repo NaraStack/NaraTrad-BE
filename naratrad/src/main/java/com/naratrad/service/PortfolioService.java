@@ -45,6 +45,8 @@ public class PortfolioService {
         dto.setId(stock.getId());
         dto.setSymbol(stock.getSymbol());
         dto.setQuantity(stock.getQuantity());
+        dto.setPurchasePrice(stock.getPurchasePrice());
+        dto.setCreatedAt(stock.getCreatedAt());
 
         try {
             String url = String.format(FINNHUB_URL, stock.getSymbol(), apiKey);
@@ -64,6 +66,15 @@ public class PortfolioService {
                 dto.setPreviousClose(prevClose);
                 dto.setPriceChange(diff);
                 dto.setTotalValue(currentPrice * stock.getQuantity());
+
+                // Calculate investment & gain/loss
+                double totalInvestment = stock.getPurchasePrice() * stock.getQuantity();
+                double gainLoss = (currentPrice - stock.getPurchasePrice()) * stock.getQuantity();
+                double gainLossPercent = ((currentPrice - stock.getPurchasePrice()) / stock.getPurchasePrice()) * 100;
+
+                dto.setTotalInvestment(totalInvestment);
+                dto.setGainLoss(gainLoss);
+                dto.setGainLossPercent(gainLossPercent);
             } else {
                 setEmptyPriceData(dto);
             }
@@ -80,18 +91,41 @@ public class PortfolioService {
         dto.setPreviousClose(0.0);
         dto.setPriceChange(0.0);
         dto.setTotalValue(0.0);
+        dto.setTotalInvestment(0.0);
+        dto.setGainLoss(0.0);
+        dto.setGainLossPercent(0.0);
     }
 
     /**
      * CREATE / UPDATE: Menambah stok. Simbol dipaksa Uppercase.
+     * Jika stok sudah ada, hitung weighted average price.
+     * Jika purchasePrice tidak diisi, otomatis gunakan current price.
      */
     public Portfolio addOrUpdateStock(Portfolio stock) {
         String symbol = stock.getSymbol().toUpperCase();
+
+        // Auto-set purchasePrice jika tidak diisi (null atau 0)
+        if (stock.getPurchasePrice() == null || stock.getPurchasePrice() == 0.0) {
+            Double currentPrice = getLivePrice(symbol);
+            if (currentPrice == null || currentPrice == 0.0) {
+                throw new RuntimeException("Gagal mendapatkan harga untuk symbol: " + symbol);
+            }
+            stock.setPurchasePrice(currentPrice);
+        }
+
         Optional<Portfolio> existingStock = repository.findBySymbol(symbol);
 
         if (existingStock.isPresent()) {
             Portfolio p = existingStock.get();
-            p.setQuantity(p.getQuantity() + stock.getQuantity());
+
+            // Calculate weighted average price
+            double existingTotalCost = p.getPurchasePrice() * p.getQuantity();
+            double newTotalCost = stock.getPurchasePrice() * stock.getQuantity();
+            int totalQuantity = p.getQuantity() + stock.getQuantity();
+            double weightedAvgPrice = (existingTotalCost + newTotalCost) / totalQuantity;
+
+            p.setQuantity(totalQuantity);
+            p.setPurchasePrice(weightedAvgPrice);
             return repository.save(p);
         }
 
@@ -135,9 +169,23 @@ public class PortfolioService {
                 .mapToDouble(PortfolioResponseDTO::getTotalValue)
                 .sum();
 
+        Double totalInvestment = allDetails.stream()
+                .mapToDouble(PortfolioResponseDTO::getTotalInvestment)
+                .sum();
+
+        Double totalGainLoss = allDetails.stream()
+                .mapToDouble(PortfolioResponseDTO::getGainLoss)
+                .sum();
+
+        // ROI = (Total Gain/Loss / Total Investment) * 100
+        Double roi = totalInvestment > 0 ? (totalGainLoss / totalInvestment) * 100 : 0.0;
+
         DashboardDTO dashboard = new DashboardDTO();
         dashboard.setTotalPortfolioValue(totalValue);
         dashboard.setTotalStocksOwned(allDetails.size());
+        dashboard.setTotalInvestment(totalInvestment);
+        dashboard.setTotalGainLoss(totalGainLoss);
+        dashboard.setRoi(roi);
         dashboard.setStockList(allDetails);
 
         return dashboard;
