@@ -44,4 +44,8 @@ public class User {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
     }
+
+    // Simpan di package com.naratrad.entity
+    private String resetToken;
+    private LocalDateTime resetTokenExpiry;
 }
