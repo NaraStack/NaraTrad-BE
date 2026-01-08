@@ -1,6 +1,7 @@
 package com.naratrad.controller;
 
 import com.naratrad.dto.DashboardDTO;
+import com.naratrad.dto.PerformanceChartDTO;
 import com.naratrad.dto.PortfolioResponseDTO;
 import com.naratrad.dto.PortfolioSummaryDTO;
 import com.naratrad.entity.Portfolio;
@@ -56,6 +57,13 @@ public class PortfolioController {
     public DashboardDTO getDashboard() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return service.getDashboardData(email);
+    }
+
+    @GetMapping("/performance")
+    @Operation(summary = "Get portfolio performance chart data for the last 7 days")
+    public PerformanceChartDTO getPerformanceChart() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return service.getPerformanceChart(email);
     }
 
     @GetMapping("/search")
