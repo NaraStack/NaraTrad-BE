@@ -5,13 +5,15 @@ import java.util.List;
 
 @Data
 public class DashboardDTO {
-    // Summary untuk Dashboard
-    private Double totalPortfolioValue;   // Total nilai sekarang (current value)
-    private Integer totalStocksOwned;     // Jumlah jenis saham berbeda
-    private Double totalInvestment;       // Total modal yang diinvestasikan
-    private Double totalGainLoss;         // Total keuntungan/kerugian dalam USD
-    private Double roi;                   // Return on Investment dalam persen
+    // Summary for Dashboard
+    private Double totalPortfolioValue;   // Total current portfolio value
+    private Integer totalStocksOwned;     // Total number of different stocks
+    private Double totalInvestment;       // Total capital invested
+    private Double totalGainLoss;         // Total profit/loss in USD (since purchase)
+    private Double roi;                   // Return on Investment in percentage
+    private Double dailyChange;           // Daily change in USD (today only)
+    private Double dailyChangePercent;    // Daily change in percentage (today only)
 
     // Detail per stock
-    private List<PortfolioResponseDTO> stockList; // Data detail tiap stock
+    private List<PortfolioResponseDTO> stockList; // Detailed data for each stock
 }
