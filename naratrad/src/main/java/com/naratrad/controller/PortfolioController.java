@@ -8,6 +8,7 @@ import com.naratrad.service.PortfolioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,60 +17,64 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/portfolio")
 @Tag(name = "Portfolio Management", description = "CRUD untuk dashboard NaraTrad")
-@CrossOrigin(origins = "*") // Penting agar bisa diakses oleh Angular nanti
 public class PortfolioController {
 
     @Autowired
     private PortfolioService service;
 
     @GetMapping
-    @Operation(summary = "Mendapatkan semua stok beserta harga real-time")
+    @Operation(summary = "Get all stocks along with real-time prices (filtered by user)")
     public List<PortfolioResponseDTO> getAll() {
-        return service.getFullPortfolio();
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return service.getFullPortfolio(email);
     }
 
     @PostMapping
-    @Operation(summary = "Menambah stok baru atau update jumlah")
+    @Operation(summary = "Add new stock or update quantity (linked to user)")
     public Portfolio addStock(@RequestBody Portfolio stock) {
-        return service.addOrUpdateStock(stock);
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return service.addOrUpdateStock(email, stock);
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Menghapus stok berdasarkan ID")
+    @Operation(summary = "Delete stock based on ID (verify ownership)")
     public String deleteStock(@PathVariable Long id) {
-        service.deleteStock(id);
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        service.deleteStock(email, id);
         return "Stock deleted successfully";
     }
 
     @GetMapping("/summary")
-    @Operation(summary = "Mendapatkan ringkasan total nilai seluruh portofolio")
+    @Operation(summary = "Get a summary of the total value of the entire portfolio (filtered by user)")
     public PortfolioSummaryDTO getSummary() {
-        return service.getSummary();
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return service.getSummary(email);
     }
 
     @GetMapping("/dashboard")
-    @Operation(summary = "Mendapatkan data lengkap dashboard (Summary + Stock List)")
+    @Operation(summary = "Get complete dashboard data (Summary + Stock List, filtered by user)")
     public DashboardDTO getDashboard() {
-        return service.getDashboardData();
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return service.getDashboardData(email);
     }
 
     @GetMapping("/search")
-    @Operation(summary = "Mencari Symbol auto lewat dropdown saat add stock")
+    @Operation(summary = "Search for auto symbols via dropdown when adding stock")
     public List<Map<String, String>> search(@RequestParam String query) {
         if (query.length() < 1) return List.of();
         return service.searchSymbols(query);
     }
 
-    // 1. Endpoint untuk mendapatkan harga saja
+    // 1. Endpoint to get price only
     @GetMapping("/price/{symbol}")
-    @Operation(summary = "Mendapatkan harga real-time satu simbol saja")
+    @Operation(summary = "Get real-time prices for just one symbol")
     public Double getStockPrice(@PathVariable String symbol) {
         return service.getLivePrice(symbol);
     }
 
-    // 2. Endpoint untuk kalkulasi (biasanya dipakai di form 'Add Stock' buat simulasi)
+    // 2. Endpoint for calculation (usually used in the 'Add Stock' form for simulation)
     @GetMapping("/calculate")
-    @Operation(summary = "Menghitung total nilai (Price x Quantity) secara real-time")
+    @Operation(summary = "Calculate total value (Price x Quantity) in real-time")
     public Map<String, Object> getCalculation(
             @RequestParam String symbol,
             @RequestParam Integer quantity) {
