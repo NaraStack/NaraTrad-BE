@@ -1,6 +1,7 @@
 package com.naratrad.service;
 
 import com.naratrad.dto.DashboardDTO;
+import com.naratrad.dto.PerformanceChartDTO;
 import com.naratrad.dto.PortfolioResponseDTO;
 import com.naratrad.dto.PortfolioSummaryDTO;
 import com.naratrad.entity.Portfolio;
@@ -12,6 +13,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -94,6 +98,9 @@ public class PortfolioService {
         return dto;
     }
 
+    /**
+     * Set default values when price data is unavailable
+     */
     private void setEmptyPriceData(PortfolioResponseDTO dto) {
         dto.setPrice(0.0);
         dto.setChange(0.0);
@@ -106,10 +113,10 @@ public class PortfolioService {
     }
 
     /**
-     * CREATE / UPDATE: add stock. Forced Uppercase symbol.
-     * If stock is available, calculate the weighted average price.
-     * If the purchase price is not filled in, it will automatically use the current price.
-     * SECURITY FIX: Link portfolio to user and check by user+symbol
+     * CREATE / UPDATE: Add stock with uppercase symbol enforcement.
+     * If stock exists, calculate weighted average price.
+     * If purchase price is not provided, auto-fetch current price.
+     * SECURITY FIX: Link portfolio to user and verify by user+symbol
      */
     public Portfolio addOrUpdateStock(String email, Portfolio stock) {
         User user = userRepository.findByEmail(email)
@@ -150,22 +157,22 @@ public class PortfolioService {
     }
 
     /**
-     * DELETE: Menghapus data berdasarkan ID
-     * SECURITY FIX: Verify ownership sebelum delete
+     * DELETE: Remove stock by ID
+     * SECURITY FIX: Verify ownership before deletion
      */
     public void deleteStock(String email, Long id) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User tidak ditemukan"));
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Verify ownership: hanya bisa delete portfolio milik sendiri
+        // Verify ownership: can only delete own portfolio
         Portfolio portfolio = repository.findByUserAndId(user, id)
-                .orElseThrow(() -> new RuntimeException("Portfolio tidak ditemukan atau bukan milik Anda"));
+                .orElseThrow(() -> new RuntimeException("Portfolio not found or not owned by you"));
 
         repository.delete(portfolio);
     }
 
     /**
-     * Mendapatkan Ringkasan Portofolio saja
+     * Get portfolio summary only
      * SECURITY FIX: Filter by user
      */
     public PortfolioSummaryDTO getSummary(String email) {
@@ -183,26 +190,48 @@ public class PortfolioService {
     }
 
     /**
-     * Mendapatkan Paket Lengkap untuk Dashboard (Summary + List Stok)
+     * Get complete dashboard data (Summary + Stock List)
      * SECURITY FIX: Filter by user
      */
     public DashboardDTO getDashboardData(String email) {
         List<PortfolioResponseDTO> allDetails = getFullPortfolio(email);
 
+        // Calculate total portfolio value (sum of all current values)
         Double totalValue = allDetails.stream()
                 .mapToDouble(PortfolioResponseDTO::getTotalValue)
                 .sum();
 
+        // Calculate total investment (sum of all purchase costs)
         Double totalInvestment = allDetails.stream()
                 .mapToDouble(PortfolioResponseDTO::getTotalInvestment)
                 .sum();
 
+        // Calculate total gain/loss since purchase
         Double totalGainLoss = allDetails.stream()
                 .mapToDouble(PortfolioResponseDTO::getGainLoss)
                 .sum();
 
+        // Calculate daily change (today's price change * quantity for all stocks)
+        Double dailyChange = allDetails.stream()
+                .mapToDouble(stock -> {
+                    Double priceChange = stock.getPriceChange() != null ? stock.getPriceChange() : 0.0;
+                    return priceChange * stock.getQuantity();
+                })
+                .sum();
+
+        // Calculate previous total value (yesterday's closing value)
+        Double previousTotalValue = allDetails.stream()
+                .mapToDouble(stock -> {
+                    Double prevClose = stock.getPreviousClose() != null ? stock.getPreviousClose() : 0.0;
+                    return prevClose * stock.getQuantity();
+                })
+                .sum();
+
         // ROI = (Total Gain/Loss / Total Investment) * 100
         Double roi = totalInvestment > 0 ? (totalGainLoss / totalInvestment) * 100 : 0.0;
+
+        // Daily Change Percent = (Daily Change / Previous Total Value) * 100
+        Double dailyChangePercent = previousTotalValue > 0 ? (dailyChange / previousTotalValue) * 100 : 0.0;
 
         DashboardDTO dashboard = new DashboardDTO();
         dashboard.setTotalPortfolioValue(totalValue);
@@ -210,13 +239,19 @@ public class PortfolioService {
         dashboard.setTotalInvestment(totalInvestment);
         dashboard.setTotalGainLoss(totalGainLoss);
         dashboard.setRoi(roi);
+        dashboard.setDailyChange(dailyChange);
+        dashboard.setDailyChangePercent(dailyChangePercent);
         dashboard.setStockList(allDetails);
 
         return dashboard;
     }
 
+    /**
+     * Search for stock symbols
+     * Returns hardcoded list of popular stocks filtered by query
+     */
     public List<Map<String, String>> searchSymbols(String query) {
-        // 1. Hardcode 50 data simbol populer
+        // Hardcoded popular stock symbols
         List<Map<String, String>> mockSymbols = List.of(
                 Map.of("symbol", "AAPL", "name", "Apple Inc."),
                 Map.of("symbol", "MSFT", "name", "Microsoft Corp."),
@@ -270,16 +305,18 @@ public class PortfolioService {
                 Map.of("symbol", "TM", "name", "Toyota Motor")
         );
 
-        // 2. Filter berdasarkan input user
+        // Filter based on user input
         String upperQuery = query.toUpperCase();
         return mockSymbols.stream()
                 .filter(s -> s.get("symbol").contains(upperQuery) ||
                         s.get("name").toUpperCase().contains(upperQuery))
-                .limit(10) // Tetap batasi 10 hasil agar rapi di UI
+                .limit(10) // Limit to 10 results for clean UI
                 .collect(Collectors.toList());
     }
 
-    // Method untuk ambil harga satuan saja
+    /**
+     * Get live price for a single symbol
+     */
     public Double getLivePrice(String symbol) {
         try {
             String url = String.format(FINNHUB_URL, symbol.toUpperCase(), apiKey);
@@ -294,7 +331,9 @@ public class PortfolioService {
         return 0.0;
     }
 
-    // Method untuk hitung total value (Live Calculation)
+    /**
+     * Calculate total value (Live Calculation for Add Stock form)
+     */
     public Map<String, Object> calculateTotalValue(String symbol, Integer quantity) {
         Double price = getLivePrice(symbol);
         Double totalValue = price * quantity;
@@ -305,5 +344,54 @@ public class PortfolioService {
                 "currentPrice", price,
                 "totalValue", totalValue
         );
+    }
+
+    /**
+     * Get portfolio performance data for the last 7 days
+     * SECURITY FIX: Filter by user
+     * NOTE: This generates simulated data based on current portfolio value and gain/loss trend.
+     * For production, implement actual historical tracking.
+     */
+    public PerformanceChartDTO getPerformanceChart(String email) {
+        // Get current dashboard data
+        DashboardDTO dashboard = getDashboardData(email);
+
+        Double currentValue = dashboard.getTotalPortfolioValue();
+        Double totalInvestment = dashboard.getTotalInvestment();
+        Double totalGainLoss = dashboard.getTotalGainLoss();
+
+        // If portfolio is empty, return empty chart
+        if (currentValue == 0 || totalInvestment == 0) {
+            return new PerformanceChartDTO(List.of(), List.of());
+        }
+
+        List<String> labels = new ArrayList<>();
+        List<Double> values = new ArrayList<>();
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM dd");
+        LocalDate today = LocalDate.now();
+
+        // Generate data for the last 7 days
+        for (int i = 6; i >= 0; i--) {
+            LocalDate date = today.minusDays(i);
+            labels.add(date.format(formatter));
+
+            // Simulate gradual progression from investment to current value
+            // Day 0 (6 days ago) starts closer to investment, Day 6 (today) is current value
+            double progress = (6.0 - i) / 6.0; // 0.0 to 1.0
+
+            // Calculate simulated value for this day
+            // Value = Investment + (GainLoss * progress)
+            double simulatedValue = totalInvestment + (totalGainLoss * progress);
+
+            // Add slight random variation for realism (±0.5% of the value)
+            double variation = simulatedValue * (Math.random() * 0.01 - 0.005);
+            double finalValue = Math.max(0, simulatedValue + variation);
+
+            // Round to 2 decimal places
+            values.add(Math.round(finalValue * 100.0) / 100.0);
+        }
+
+        return new PerformanceChartDTO(labels, values);
     }
 }
