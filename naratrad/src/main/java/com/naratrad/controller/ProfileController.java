@@ -1,6 +1,7 @@
 package com.naratrad.controller;
 
 import com.naratrad.dto.ChangePasswordRequest;
+import com.naratrad.dto.SuccessResponse;
 import com.naratrad.dto.UpdateProfileRequest;
 import com.naratrad.dto.UserResponse;
 import com.naratrad.service.ProfileService;
@@ -11,9 +12,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Controller to manage user profiles
+ * Controller untuk mengelola profile user
  * Endpoints:
- * - GET /api/profile - Get profile of currently logged in user
+ * - GET /api/profile - Get profile user yang sedang login
  * - PUT /api/profile - Update profile (name, email)
  * - PUT /api/profile/password - Change password
  */
@@ -26,7 +27,7 @@ public class ProfileController {
 
     /**
      * GET /api/profile
-     * Get profile information of the currently logged in user
+     * Get current user profile info
      */
     @GetMapping
     public ResponseEntity<UserResponse> getProfile() {
@@ -37,7 +38,7 @@ public class ProfileController {
 
     /**
      * PUT /api/profile
-     * Update user profile (full name and email)
+     * Update user profile (fullName and email)
      * Request body: { "fullName": "...", "email": "..." }
      */
     @PutMapping
@@ -53,9 +54,9 @@ public class ProfileController {
      * Request body: { "oldPassword": "...", "newPassword": "..." }
      */
     @PutMapping("/password")
-    public ResponseEntity<String> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+    public ResponseEntity<SuccessResponse> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         profileService.changePassword(email, request);
-        return ResponseEntity.ok("Password changed successfully");
+        return ResponseEntity.ok(new SuccessResponse("Password changed successfully"));
     }
 }
