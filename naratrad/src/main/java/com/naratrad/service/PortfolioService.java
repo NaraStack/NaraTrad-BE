@@ -4,7 +4,9 @@ import com.naratrad.dto.DashboardDTO;
 import com.naratrad.dto.PortfolioResponseDTO;
 import com.naratrad.dto.PortfolioSummaryDTO;
 import com.naratrad.entity.Portfolio;
+import com.naratrad.entity.User;
 import com.naratrad.repository.PortfolioRepository;
+import com.naratrad.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,9 @@ public class PortfolioService {
     private PortfolioRepository repository;
 
     @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
     private RestTemplate restTemplate;
 
     @Value("${finnhub.api.key}")
@@ -30,15 +35,19 @@ public class PortfolioService {
     private final String FINNHUB_URL = "https://finnhub.io/api/v1/quote?symbol=%s&token=%s";
 
     /**
-     * READ: Mengambil semua data stok dari DB dan menggabungkannya dengan harga real-time
+     * READ: Fetch all stock data from DB and combine it with real-time prices
+     * SECURITY FIX: Filter by user email from JWT token
      */
-    public List<PortfolioResponseDTO> getFullPortfolio() {
-        List<Portfolio> myStocks = repository.findAll();
+    public List<PortfolioResponseDTO> getFullPortfolio(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User tidak ditemukan"));
+
+        List<Portfolio> myStocks = repository.findByUser(user);
         return myStocks.stream().map(this::convertToDto).collect(Collectors.toList());
     }
 
     /**
-     * Logika utama untuk mapping Entity ke DTO dan integrasi API Finnhub
+     * Main logic for Entity to DTO mapping and Finnhub API integration
      */
     private PortfolioResponseDTO convertToDto(Portfolio stock) {
         PortfolioResponseDTO dto = new PortfolioResponseDTO();
@@ -53,11 +62,11 @@ public class PortfolioService {
             Map<String, Object> response = restTemplate.getForObject(url, Map.class);
 
             if (response != null && response.get("c") != null) {
-                // Mengambil data harga saat ini dan perubahan persen
+                // Retrieves current price data and percent change
                 double currentPrice = ((Number) response.get("c")).doubleValue();
                 double percentChange = ((Number) response.get("dp")).doubleValue();
 
-                // Historical Performance: Harga penutupan kemarin (pc) & selisih harga (d)
+                // Historical Performance: Yesterday's closing price (pc) & price difference (d)
                 double prevClose = ((Number) response.get("pc")).doubleValue();
                 double diff = ((Number) response.get("d")).doubleValue();
 
@@ -79,7 +88,7 @@ public class PortfolioService {
                 setEmptyPriceData(dto);
             }
         } catch (Exception e) {
-            System.err.println("Gagal fetch Finnhub untuk " + stock.getSymbol() + ": " + e.getMessage());
+            System.err.println("Failed to fetch Finnhub for " + stock.getSymbol() + ": " + e.getMessage());
             setEmptyPriceData(dto);
         }
         return dto;
@@ -97,23 +106,28 @@ public class PortfolioService {
     }
 
     /**
-     * CREATE / UPDATE: Menambah stok. Simbol dipaksa Uppercase.
-     * Jika stok sudah ada, hitung weighted average price.
-     * Jika purchasePrice tidak diisi, otomatis gunakan current price.
+     * CREATE / UPDATE: add stock. Forced Uppercase symbol.
+     * If stock is available, calculate the weighted average price.
+     * If the purchase price is not filled in, it will automatically use the current price.
+     * SECURITY FIX: Link portfolio to user and check by user+symbol
      */
-    public Portfolio addOrUpdateStock(Portfolio stock) {
+    public Portfolio addOrUpdateStock(String email, Portfolio stock) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
         String symbol = stock.getSymbol().toUpperCase();
 
-        // Auto-set purchasePrice jika tidak diisi (null atau 0)
+        // Auto-set purchasePrice if not filled (null or 0)
         if (stock.getPurchasePrice() == null || stock.getPurchasePrice() == 0.0) {
             Double currentPrice = getLivePrice(symbol);
             if (currentPrice == null || currentPrice == 0.0) {
-                throw new RuntimeException("Gagal mendapatkan harga untuk symbol: " + symbol);
+                throw new RuntimeException("Failed to get price for symbol: " + symbol);
             }
             stock.setPurchasePrice(currentPrice);
         }
 
-        Optional<Portfolio> existingStock = repository.findBySymbol(symbol);
+        // SECURITY FIX: Check by user AND symbol, not only symbol
+        Optional<Portfolio> existingStock = repository.findByUserAndSymbol(user, symbol);
 
         if (existingStock.isPresent()) {
             Portfolio p = existingStock.get();
@@ -129,24 +143,33 @@ public class PortfolioService {
             return repository.save(p);
         }
 
+        // Link portfolio ke user
+        stock.setUser(user);
         stock.setSymbol(symbol);
         return repository.save(stock);
     }
 
     /**
      * DELETE: Menghapus data berdasarkan ID
+     * SECURITY FIX: Verify ownership sebelum delete
      */
-    public void deleteStock(Long id) {
-        if (repository.existsById(id)) {
-            repository.deleteById(id);
-        }
+    public void deleteStock(String email, Long id) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User tidak ditemukan"));
+
+        // Verify ownership: hanya bisa delete portfolio milik sendiri
+        Portfolio portfolio = repository.findByUserAndId(user, id)
+                .orElseThrow(() -> new RuntimeException("Portfolio tidak ditemukan atau bukan milik Anda"));
+
+        repository.delete(portfolio);
     }
 
     /**
      * Mendapatkan Ringkasan Portofolio saja
+     * SECURITY FIX: Filter by user
      */
-    public PortfolioSummaryDTO getSummary() {
-        List<PortfolioResponseDTO> allDetails = getFullPortfolio();
+    public PortfolioSummaryDTO getSummary(String email) {
+        List<PortfolioResponseDTO> allDetails = getFullPortfolio(email);
 
         Double totalValue = allDetails.stream()
                 .mapToDouble(PortfolioResponseDTO::getTotalValue)
@@ -161,9 +184,10 @@ public class PortfolioService {
 
     /**
      * Mendapatkan Paket Lengkap untuk Dashboard (Summary + List Stok)
+     * SECURITY FIX: Filter by user
      */
-    public DashboardDTO getDashboardData() {
-        List<PortfolioResponseDTO> allDetails = getFullPortfolio();
+    public DashboardDTO getDashboardData(String email) {
+        List<PortfolioResponseDTO> allDetails = getFullPortfolio(email);
 
         Double totalValue = allDetails.stream()
                 .mapToDouble(PortfolioResponseDTO::getTotalValue)
