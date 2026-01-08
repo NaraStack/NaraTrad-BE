@@ -17,7 +17,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/portfolio")
 @Tag(name = "Portfolio Management", description = "CRUD untuk dashboard NaraTrad")
-@CrossOrigin(origins = "*") // Important so that can be accessed by Angular later
 public class PortfolioController {
 
     @Autowired
