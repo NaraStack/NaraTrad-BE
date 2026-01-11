@@ -1,13 +1,11 @@
 package com.naratrad.service;
 
-import com.naratrad.dto.DashboardDTO;
-import com.naratrad.dto.PerformanceChartDTO;
-import com.naratrad.dto.PortfolioResponseDTO;
-import com.naratrad.dto.PortfolioSummaryDTO;
+import com.naratrad.dto.*;
 import com.naratrad.entity.Portfolio;
 import com.naratrad.entity.User;
 import com.naratrad.repository.PortfolioRepository;
 import com.naratrad.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -426,5 +424,20 @@ public class PortfolioService {
         }
 
         return new PerformanceChartDTO(labels, values);
+    }
+
+    /**
+     * Fitur Update Stock: Mengambil harga live dari Finnhub dan menghitung
+     * Weighted Average Price secara otomatis.
+     */
+    @Transactional
+    public Portfolio updateStockByLivePrice(String email, String symbol, Integer addedQuantity) {
+        Portfolio updateData = new Portfolio();
+        updateData.setSymbol(symbol.toUpperCase());
+        updateData.setQuantity(addedQuantity);
+
+        updateData.setPurchasePrice(0.0);
+
+        return addOrUpdateStock(email, updateData);
     }
 }
