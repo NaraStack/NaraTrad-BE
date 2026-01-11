@@ -8,6 +8,10 @@ import com.naratrad.entity.User;
 import com.naratrad.entity.Role;
 import com.naratrad.dto.RegisterRequest;
 import com.naratrad.repository.UserRepository;
+import com.naratrad.dto.ForgotPasswordRequest;
+import com.naratrad.dto.ResetPasswordRequest;
+import java.util.UUID;
+import java.time.LocalDateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -90,15 +94,10 @@ public class AuthService {
                 .build();
     }
 
-    // Secret key untuk create admin (baca dari .env)
     @Value("${admin.secret.key:NARATRAD_ADMIN_SECRET_2026}")
     private String adminSecretKey;
 
-    /**
-     * Method khusus untuk create admin user
-     * Hanya bisa dipanggil dengan secret key yang benar
-     * PENTING: Hapus/disable endpoint ini setelah admin pertama dibuat!
-     */
+
     public User createAdmin(CreateAdminRequest request) {
         // 1. Validasi secret key
         if (!adminSecretKey.equals(request.getSecretKey())) {
@@ -121,5 +120,44 @@ public class AuthService {
 
         // 4. Simpan ke database
         return userRepository.save(admin);
+    }
+
+    @Autowired
+    private EmailService emailService; // 1. Inject service emailnya
+
+    public String forgotPassword(ForgotPasswordRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("Email tidak ditemukan!"));
+
+        String token = UUID.randomUUID().toString();
+        user.setResetToken(token);
+        user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
+        userRepository.save(user);
+
+        // 2. GANTI print console dengan ini:
+        emailService.sendResetPasswordEmail(user.getEmail(), token);
+
+        return "Instruksi reset password telah dikirim ke email anda.";
+    }
+
+    public String resetPassword(ResetPasswordRequest request) {
+        // 1. Cari user berdasarkan token
+        User user = userRepository.findByResetToken(request.getToken())
+                .orElseThrow(() -> new RuntimeException("Token reset tidak valid!"));
+
+        // 2. Validasi Expiry
+        if (user.getResetTokenExpiry().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("Token sudah kadaluwarsa!");
+        }
+
+        // 3. Update password (jangan lupa di-encode!)
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+
+        // 4. Hapus token agar tidak bisa dipakai 2x (Security Best Practice)
+        user.setResetToken(null);
+        user.setResetTokenExpiry(null);
+        userRepository.save(user);
+
+        return "Password berhasil diubah! Silakan login kembali.";
     }
 }
