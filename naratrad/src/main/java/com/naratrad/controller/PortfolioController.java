@@ -1,14 +1,12 @@
 package com.naratrad.controller;
 
-import com.naratrad.dto.DashboardDTO;
-import com.naratrad.dto.PerformanceChartDTO;
-import com.naratrad.dto.PortfolioResponseDTO;
-import com.naratrad.dto.PortfolioSummaryDTO;
+import com.naratrad.dto.*;
 import com.naratrad.entity.Portfolio;
 import com.naratrad.service.PortfolioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,6 +33,33 @@ public class PortfolioController {
     public Portfolio addStock(@RequestBody Portfolio stock) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return service.addOrUpdateStock(email, stock);
+    }
+
+    @PutMapping("/update-stock/{symbol}")
+    @Operation(summary = "Update stok berdasarkan symbol")
+    public ResponseEntity<?> updateStock(
+            @PathVariable String symbol,
+            @RequestBody UpdateStockRequest request) {
+
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        Portfolio stockData = new Portfolio();
+        stockData.setSymbol(symbol.toUpperCase());
+        stockData.setQuantity(request.getAddedQuantity());
+
+        stockData.setPurchasePrice(0.0);
+
+        try {
+            Portfolio updated = service.addOrUpdateStock(email, stockData);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Stok " + symbol + " berhasil ditambah dengan harga pasar terbaru!",
+                    "newQuantity", updated.getQuantity(),
+                    "newAveragePrice", updated.getPurchasePrice()
+            ));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @DeleteMapping("/{id}")
@@ -73,14 +98,12 @@ public class PortfolioController {
         return service.searchSymbols(query);
     }
 
-    // 1. Endpoint to get price only
     @GetMapping("/price/{symbol}")
     @Operation(summary = "Get real-time prices for just one symbol")
     public Double getStockPrice(@PathVariable String symbol) {
         return service.getLivePrice(symbol);
     }
 
-    // 2. Endpoint for calculation (usually used in the 'Add Stock' form for simulation)
     @GetMapping("/calculate")
     @Operation(summary = "Calculate total value (Price x Quantity) in real-time")
     public Map<String, Object> getCalculation(
