@@ -11,6 +11,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintWriter;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -439,5 +442,30 @@ public class PortfolioService {
         updateData.setPurchasePrice(0.0);
 
         return addOrUpdateStock(email, updateData);
+    }
+
+    public ByteArrayInputStream exportPortfolioToCsv(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User tidak ditemukan"));
+
+        List<Portfolio> myStocks = repository.findByUser(user);
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (PrintWriter writer = new PrintWriter(out)) {
+            writer.println("Symbol,Quantity,Average Price,Total Investment");
+
+            for (Portfolio stock : myStocks) {
+                double totalInvestment = stock.getQuantity() * stock.getPurchasePrice();
+                writer.printf("%s,%d,%.2f,%.2f%n",
+                        stock.getSymbol(),
+                        stock.getQuantity(),
+                        stock.getPurchasePrice(),
+                        totalInvestment);
+            }
+            writer.flush();
+            return new ByteArrayInputStream(out.toByteArray());
+        } catch (Exception e) {
+            throw new RuntimeException("Gagal ekspor CSV: " + e.getMessage());
+        }
     }
 }

@@ -6,10 +6,15 @@ import com.naratrad.service.PortfolioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -110,5 +115,19 @@ public class PortfolioController {
             @RequestParam String symbol,
             @RequestParam Integer quantity) {
         return service.calculateTotalValue(symbol, quantity);
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "Download portofolio dalam format CSV")
+    public ResponseEntity<Resource> downloadCsv() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        InputStreamResource file = new InputStreamResource(service.exportPortfolioToCsv(email));
+        String filename = "NaraTrad_Portfolio_" + LocalDate.now() + ".csv";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
+                .contentType(MediaType.parseMediaType("text/csv"))
+                .body(file);
     }
 }
