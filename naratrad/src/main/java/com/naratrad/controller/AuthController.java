@@ -107,6 +107,16 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/register-admin")
+    public ResponseEntity<?> registerAdmin(@RequestBody CreateAdminRequest request) {
+        try {
+            User admin = authService.createAdmin(request);
+            return ResponseEntity.ok("Admin berhasil dibuat dengan email: " + admin.getEmail());
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     /**
      * Endpoint khusus untuk create admin user (ONE-TIME USE)
      */
