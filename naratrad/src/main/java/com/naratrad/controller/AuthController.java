@@ -1,11 +1,7 @@
 package com.naratrad.controller;
 
-import com.naratrad.dto.CreateAdminRequest;
-import com.naratrad.dto.LoginRequest;
-import com.naratrad.dto.LoginResponse;
-import com.naratrad.dto.UserResponse;
+import com.naratrad.dto.*;
 import com.naratrad.entity.User;
-import com.naratrad.dto.RegisterRequest;
 import com.naratrad.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -88,6 +84,36 @@ public class AuthController {
             Map<String, String> error = new HashMap<>();
             error.put("error", e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+        }
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        try {
+            String result = authService.forgotPassword(request);
+            return ResponseEntity.ok(result);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
+        try {
+            String result = authService.resetPassword(request);
+            return ResponseEntity.ok(result);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/register-admin")
+    public ResponseEntity<?> registerAdmin(@RequestBody CreateAdminRequest request) {
+        try {
+            User admin = authService.createAdmin(request);
+            return ResponseEntity.ok("Admin berhasil dibuat dengan email: " + admin.getEmail());
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
