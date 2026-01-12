@@ -1,6 +1,7 @@
 package com.naratrad.repository;
 
 import com.naratrad.entity.User;
+import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
