@@ -43,3 +43,5 @@ naratrad/data/*.mv.db
 .env.local
 .env.production
 *.env
+
+src/test/resources/application-test.properties
