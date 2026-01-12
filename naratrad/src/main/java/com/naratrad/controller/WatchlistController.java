@@ -3,6 +3,7 @@ package com.naratrad.controller;
 import com.naratrad.dto.SuccessResponse;
 import com.naratrad.dto.WatchlistRequestDTO;
 import com.naratrad.dto.WatchlistResponseDTO;
+import com.naratrad.dto.WatchlistUpdateDTO;
 import com.naratrad.service.WatchlistService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -44,5 +45,15 @@ public class WatchlistController {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         watchlistService.removeFromWatchlist(email, id);
         return ResponseEntity.ok(new SuccessResponse("Stock deleted form watchlist"));
+    }
+
+    @PutMapping("/update-target/{symbol}")
+    @Operation(summary = "Update target price menggunakan Request Body")
+    public ResponseEntity<WatchlistResponseDTO> updateTargetPrice(
+            @PathVariable String symbol,
+            @RequestBody WatchlistUpdateDTO dto) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        WatchlistResponseDTO result = watchlistService.updateTargetPriceBySymbol(email, symbol, dto);
+        return ResponseEntity.ok(result);
     }
 }
