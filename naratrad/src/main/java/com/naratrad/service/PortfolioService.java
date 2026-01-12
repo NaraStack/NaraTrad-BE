@@ -1,18 +1,19 @@
 package com.naratrad.service;
 
-import com.naratrad.dto.DashboardDTO;
-import com.naratrad.dto.PerformanceChartDTO;
-import com.naratrad.dto.PortfolioResponseDTO;
-import com.naratrad.dto.PortfolioSummaryDTO;
+import com.naratrad.dto.*;
 import com.naratrad.entity.Portfolio;
 import com.naratrad.entity.User;
 import com.naratrad.repository.PortfolioRepository;
 import com.naratrad.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintWriter;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -29,6 +30,9 @@ public class PortfolioService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private com.naratrad.repository.ApiLogRepository apiLogRepository;
 
     @Autowired
     private RestTemplate restTemplate;
@@ -61,16 +65,25 @@ public class PortfolioService {
         dto.setPurchasePrice(stock.getPurchasePrice());
         dto.setCreatedAt(stock.getCreatedAt());
 
+        // 1. Mulai hitung waktu tepat sebelum panggil API
+        long startTime = System.currentTimeMillis();
+
         try {
             String url = String.format(FINNHUB_URL, stock.getSymbol(), apiKey);
+
+            // Eksekusi pemanggilan API Finnhub
             Map<String, Object> response = restTemplate.getForObject(url, Map.class);
 
+            // 2. Hitung durasi setelah response didapat
+            long duration = System.currentTimeMillis() - startTime;
+
             if (response != null && response.get("c") != null) {
-                // Retrieves current price data and percent change
+                // 3. Simpan log sukses ke database
+                saveApiLog("/api/v1/quote", duration);
+
+                // Logic perhitungan harga kamu tetap sama...
                 double currentPrice = ((Number) response.get("c")).doubleValue();
                 double percentChange = ((Number) response.get("dp")).doubleValue();
-
-                // Historical Performance: Yesterday's closing price (pc) & price difference (d)
                 double prevClose = ((Number) response.get("pc")).doubleValue();
                 double diff = ((Number) response.get("d")).doubleValue();
 
@@ -80,7 +93,6 @@ public class PortfolioService {
                 dto.setPriceChange(diff);
                 dto.setTotalValue(currentPrice * stock.getQuantity());
 
-                // Calculate investment & gain/loss
                 double totalInvestment = stock.getPurchasePrice() * stock.getQuantity();
                 double gainLoss = (currentPrice - stock.getPurchasePrice()) * stock.getQuantity();
                 double gainLossPercent = ((currentPrice - stock.getPurchasePrice()) / stock.getPurchasePrice()) * 100;
@@ -89,15 +101,32 @@ public class PortfolioService {
                 dto.setGainLoss(gainLoss);
                 dto.setGainLossPercent(gainLossPercent);
             } else {
+                // Simpan log jika response kosong/null
+                saveApiLog("/api/v1/quote-empty", duration);
                 setEmptyPriceData(dto);
             }
         } catch (Exception e) {
+            // 4. Hitung durasi dan simpan log jika terjadi Error (Network timeout, dll)
+            long duration = System.currentTimeMillis() - startTime;
+            saveApiLog("/api/v1/quote-error", duration);
+
             System.err.println("Failed to fetch Finnhub for " + stock.getSymbol() + ": " + e.getMessage());
             setEmptyPriceData(dto);
         }
         return dto;
     }
 
+    /**
+     * Helper method untuk simpan ke Repository (Pastikan apiLogRepository sudah di-@Autowired di atas)
+     */
+    private void saveApiLog(String endpoint, long duration) {
+        com.naratrad.entity.ApiLog log = com.naratrad.entity.ApiLog.builder()
+                .endpoint(endpoint)
+                .responseTimeMs(duration)
+                .timestamp(java.time.LocalDateTime.now())
+                .build();
+        apiLogRepository.save(log);
+    }
     /**
      * Set default values when price data is unavailable
      */
@@ -318,14 +347,19 @@ public class PortfolioService {
      * Get live price for a single symbol
      */
     public Double getLivePrice(String symbol) {
+        long startTime = System.currentTimeMillis(); // CATAT WAKTU MULAI
         try {
             String url = String.format(FINNHUB_URL, symbol.toUpperCase(), apiKey);
             Map<String, Object> response = restTemplate.getForObject(url, Map.class);
+
+            long duration = System.currentTimeMillis() - startTime;
+            saveApiLog("/api/v1/quote-live", duration); // SIMPAN LOG
 
             if (response != null && response.get("c") != null) {
                 return ((Number) response.get("c")).doubleValue();
             }
         } catch (Exception e) {
+            saveApiLog("/api/v1/quote-live-error", System.currentTimeMillis() - startTime);
             System.err.println("Error fetching price: " + e.getMessage());
         }
         return 0.0;
@@ -393,5 +427,45 @@ public class PortfolioService {
         }
 
         return new PerformanceChartDTO(labels, values);
+    }
+
+    /**
+     * Fitur Update Stock: Mengambil harga live dari Finnhub dan menghitung
+     * Weighted Average Price secara otomatis.
+     */
+    @Transactional
+    public Portfolio updateStockByLivePrice(String email, String symbol, Integer addedQuantity) {
+        Portfolio updateData = new Portfolio();
+        updateData.setSymbol(symbol.toUpperCase());
+        updateData.setQuantity(addedQuantity);
+
+        updateData.setPurchasePrice(0.0);
+
+        return addOrUpdateStock(email, updateData);
+    }
+
+    public ByteArrayInputStream exportPortfolioToCsv(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User tidak ditemukan"));
+
+        List<Portfolio> myStocks = repository.findByUser(user);
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (PrintWriter writer = new PrintWriter(out)) {
+            writer.println("Symbol,Quantity,Average Price,Total Investment");
+
+            for (Portfolio stock : myStocks) {
+                double totalInvestment = stock.getQuantity() * stock.getPurchasePrice();
+                writer.printf("%s,%d,%.2f,%.2f%n",
+                        stock.getSymbol(),
+                        stock.getQuantity(),
+                        stock.getPurchasePrice(),
+                        totalInvestment);
+            }
+            writer.flush();
+            return new ByteArrayInputStream(out.toByteArray());
+        } catch (Exception e) {
+            throw new RuntimeException("Gagal ekspor CSV: " + e.getMessage());
+        }
     }
 }
