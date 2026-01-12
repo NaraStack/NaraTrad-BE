@@ -2,6 +2,7 @@ package com.naratrad.service;
 
 import com.naratrad.dto.WatchlistRequestDTO;
 import com.naratrad.dto.WatchlistResponseDTO;
+import com.naratrad.dto.WatchlistUpdateDTO;
 import com.naratrad.entity.User;
 import com.naratrad.entity.Watchlist;
 import com.naratrad.repository.UserRepository;
@@ -130,5 +131,21 @@ public class WatchlistService {
         dto.setChange(0.0);
         dto.setPriceChange(0.0);
         dto.setVolume(0L);
+    }
+
+    /**
+     * Update target price by symbol with data from Request Body
+     */
+    public WatchlistResponseDTO updateTargetPriceBySymbol(String email, String symbol, WatchlistUpdateDTO dto) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Watchlist watchlist = watchlistRepository.findByUserAndSymbol(user, symbol.toUpperCase())
+                .orElseThrow(() -> new RuntimeException("Symbol " + symbol + " tidak ditemukan di watchlist kamu"));
+
+        watchlist.setTargetPrice(dto.getTargetPrice());
+
+        Watchlist saved = watchlistRepository.save(watchlist);
+        return convertToDto(saved);
     }
 }
