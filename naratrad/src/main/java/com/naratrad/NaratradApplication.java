@@ -7,11 +7,15 @@ import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import io.swagger.v3.oas.annotations.servers.Server; // Import this
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @OpenAPIDefinition(
-        info = @Info(title = "NaraTrad API", version = "1.0"),
+        info = @Info(title = "NaraTrad API", version = "1.0", description = "NaraTrad Backend Production API"),
+        servers = {
+                @Server(url = "https://naratrad-be-production.up.railway.app", description = "Production Server")
+        },
         security = @SecurityRequirement(name = "bearerAuth")
 )
 @SecurityScheme(
