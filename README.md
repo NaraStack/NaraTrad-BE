@@ -1,6 +1,16 @@
-# NaraTrad - Backend API 
-
+# NaraTrad - Backend API
 NaraTrad is a stock portfolio tracking application designed to provide "Wise Trading for Everyone". It solves the problem of investors lacking a clear and simple way to monitor their portfolios by providing a simple and intuitive alternative to complex trading platforms.
+## 📝 Table of Contents
+* [Project Description and Purpose](#-project-description-and-purpose)
+* [Features List](#-features-list)
+* [Technology Stack](#-technology-stack)
+* [Installation Instructions](#-installation-instructions-local-setup)
+* [Environment Variables](#-environment-variables-needed)
+* [How to Run](#-how-to-run-the-application)
+* [Deployment Instructions](#-deployment-instructions)
+* [Documentation](#-documentation)
+* [Team Member Contributions](#-team-member-contributions)
+
 ## 📌 Project Description and Purpose
 This project is part of the LIT Full Stack Development Track 2025 Final Project. The purpose is to build a backend that enables beginner investors to move away from manual tracking tools to a secure, automated, and real-time dashboard.
 
@@ -59,7 +69,7 @@ This project is configured for continuous deployment on **Railway**:
 
 ## 📸 Documentation
 * **Unit Testing Success**: Testing passed for all backend modules.
-  <img width="1600" height="850" alt="image" src="https://github.com/user-attachments/assets/dd840f6c-7505-441b-91af-ee09507ebbeb" />
+  <img width="100%" alt="JUnit Testing Result" src="https://github.com/user-attachments/assets/dd840f6c-7505-441b-91af-ee09507ebbeb" />
 * **API Documentation**: Live documentation of all NaraTrad endpoints.
   <img width="100%" alt="Swagger Documentation NaraTrad" src="https://github.com/user-attachments/assets/0483bb0d-c027-4a02-b87c-5440ddcc074c" />
 * **Deployment link**: https://naratrad-be-production.up.railway.app/swagger-ui/index.html
