@@ -12,7 +12,7 @@ public class EmailService {
     private JavaMailSender mailSender;
 
     public void sendResetPasswordEmail(String toEmail, String token) {
-        String resetLink = "http://localhost:4200/reset-password?token=" + token;
+        String resetLink = "https://nara-trad-fe.vercel.app/reset-password?token=" + token;
 
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(toEmail);
