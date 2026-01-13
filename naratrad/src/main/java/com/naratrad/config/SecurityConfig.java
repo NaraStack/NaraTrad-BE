@@ -29,6 +29,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 // 1. Matikan CSRF karena kita menggunakan stateless JWT
+                .cors(cors -> cors.configure(http))
                 .csrf(csrf -> csrf.disable())
 
                 // 2. Atur izin akses (siapa boleh akses apa)

@@ -123,7 +123,7 @@ public class AuthService {
     }
 
     @Autowired
-    private EmailService emailService; // 1. Inject service emailnya
+    private EmailService emailService;
 
     public String forgotPassword(ForgotPasswordRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
@@ -134,8 +134,13 @@ public class AuthService {
         user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
         userRepository.save(user);
 
-        // 2. GANTI print console dengan ini:
-        emailService.sendResetPasswordEmail(user.getEmail(), token);
+        try {
+            emailService.sendResetPasswordEmail(user.getEmail(), token);
+        } catch (jakarta.mail.MessagingException e) {
+            System.err.println("Gagal mengirim email: " + e.getMessage());
+
+            throw new RuntimeException("Gagal mengirim email reset password. Silakan coba lagi nanti.");
+        }
 
         return "Instruksi reset password telah dikirim ke email anda.";
     }
