@@ -124,9 +124,8 @@ public class AuthService {
 
         try {
             emailService.sendResetPasswordEmail(user.getEmail(), token);
-        } catch (jakarta.mail.MessagingException e) {
-            System.err.println("Gagal mengirim email: " + e.getMessage());
-
+        } catch (Exception e) {
+            System.err.println("Gagal mengirim email via API: " + e.getMessage());
             throw new RuntimeException("Gagal mengirim email reset password. Silakan coba lagi nanti.");
         }
 

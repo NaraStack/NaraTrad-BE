@@ -1,25 +1,31 @@
 package com.naratrad.service;
 
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.*;
+import java.util.*;
 
 @Service
 public class EmailService {
 
-    @Autowired
-    private JavaMailSender mailSender;
+    @Value("${MAILTRAP_API_TOKEN}")
+    private String apiToken;
 
-    public void sendResetPasswordEmail(String toEmail, String token) throws MessagingException {
+    @Value("${MAILTRAP_INBOX_ID}")
+    private String inboxId;
+
+    public void sendResetPasswordEmail(String toEmail, String token) {
         String resetLink = "https://nara-trad-fe.vercel.app/reset-password?token=" + token;
+        RestTemplate restTemplate = new RestTemplate();
 
-        MimeMessage mimeMessage = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
+        String url = "https://sandbox.api.mailtrap.io/api/send/" + inboxId;
 
-        String htmlContent = String.format(
+        Map<String, Object> body = new HashMap<>();
+        body.put("to", List.of(Map.of("email", toEmail)));
+        body.put("from", Map.of("email", "hello@naratrad.com", "name", "NaraTrad"));
+        body.put("subject", "NaraTrad - Reset Password Request");
+        body.put("html", String.format(
                 "<html>" +
                         "<body>" +
                         "<h3>Halo!</h3>" +
@@ -32,12 +38,18 @@ public class EmailService {
                         "<p>Link ini akan kadaluwarsa dalam 15 menit.</p>" +
                         "<br><p>Salam,<br>Team NaraTrad</p>" +
                         "</body>" +
-                        "</html>", token, resetLink);
+                        "</html>", token, resetLink));
 
-        helper.setTo(toEmail);
-        helper.setSubject("NaraTrad - Reset Password Request");
-        helper.setText(htmlContent, true);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(apiToken);
 
-        mailSender.send(mimeMessage);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+        try {
+            restTemplate.postForEntity(url, entity, String.class);
+        } catch (Exception e) {
+            throw new RuntimeException("Gagal kirim email via HTTP API: " + e.getMessage());
+        }
     }
 }
